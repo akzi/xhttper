@@ -76,7 +76,7 @@ namespace xhttper
 		{
 			return std::string(buf_.data() + path_.pos_, path_.len_);
 		}
-		void reset_status()
+		void reset()
 		{
 			if (pos_ == buf_.size())
 				buf_.clear();
@@ -92,6 +92,10 @@ namespace xhttper
 			status_.reset();
 			status_str_.reset();
 		}
+		std::string get_string()
+		{
+			return std::move(buf_);
+		}
 		std::string get_string(std::size_t len)
 		{
 			if (len > buf_.size())
@@ -100,6 +104,10 @@ namespace xhttper
 			buf_ = std::move(buf_.substr(len, buf_.size() - len));
 			buf_.reserve(1024);
 			return std::move(result);
+		}
+		std::size_t remain_len()
+		{
+			return buf_.size();
 		}
 	private:
 		struct str_ref
