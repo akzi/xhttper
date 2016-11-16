@@ -3,38 +3,43 @@
 namespace xhttper
 {
 	
-	struct data_error : std::exception {};
+	struct parse_error : std::exception {};
 
 	class parser
 	{
 	public:
-		
-		enum class method
-		{
-			e_null,
-			e_get,
-			e_post,
-			e_put,
-			e_head,
-			e_delete,
-			e_connect,
-			e_trace,
-			e_options,
-		};
-		enum class version
-		{
-			e_null,
-			e_1_0,
-			e_1_1
-		};
 		parser()
 		{
 			buf_.reserve(1024);
 		}
-		bool parse(const char *dat, std::size_t len)
+		void append(const char *dat, std::size_t len)
 		{
 			buf_.append(dat, len);
-			return do_parser();
+		}
+		bool parse_req()
+		{
+			if (!parse_method())
+				return false;
+			if (!parse_path())
+				return false;
+			if (!parse_version())
+				return false;
+			if (!parse_headers())
+				return false;
+			return true;
+		}
+		
+		bool parse_rsp()
+		{
+			if (!parse_version())
+				return false;
+			if (!parse_status())
+				return false;
+			if (!parse_status_str())
+				return false;
+			if (!parse_headers())
+				return false;
+			return true;
 		}
 		std::string get_header(const char *header_name)
 		{
@@ -44,25 +49,28 @@ namespace xhttper
 			auto range = headers_.equal_range(str);
 			for (auto itr = range.first; itr != range.second; ++itr)
 			{
-				if (strncmp(
-					header_name, 
-					buf_.data() + itr->first.pos_, 
-					len) == 0)
+				if (strncmp(header_name, buf_.data() + itr->first.pos_, len) == 0)
 				{
-					return std::string(
-						buf_.data() + itr->second.pos_, 
-						itr->second.len_);
+					return itr->second.to_string(buf_);
 				}
 			}
 			return {};
 		}
-		method get_method()
+		std::string  get_method()
 		{
-			return method_;
+			return method_.to_string(buf_);
 		}
-		version get_version()
+		std::string get_version()
 		{
-			return version_;
+			return version_.to_string(buf_);
+		}
+		std::string get_status()
+		{
+			return status_.to_string(buf_);
+		}
+		std::string get_status_str()
+		{
+			return status_str_.to_string(buf_);
 		}
 		std::string get_path()
 		{
@@ -71,20 +79,27 @@ namespace xhttper
 		void reset_status()
 		{
 			if (pos_ == buf_.size())
-			{
 				buf_.clear();
-			}
 			else
-			{
 				buf_ = std::move(buf_.substr(pos_, buf_.size() - pos_));
-			}
 			pos_ = last_pos_ = 0;
 			first_.reset();
 			str_ref_.reset();
 			headers_.clear();
 			path_.reset();
-			method_ = method::e_null;
-			version_ = version::e_null;
+			method_.reset();
+			version_.reset();
+			status_.reset();
+			status_str_.reset();
+		}
+		std::string get_string(std::size_t len)
+		{
+			if (len > buf_.size())
+				throw std::exception("string subscript out of range");
+			std::string result(buf_.data(), len);
+			buf_ = std::move(buf_.substr(len, buf_.size() - len));
+			buf_.reserve(1024);
+			return std::move(result);
 		}
 	private:
 		struct str_ref
@@ -106,6 +121,10 @@ namespace xhttper
 				len_ = self.len_;
 				self.reset();
 			}
+			std::string to_string(const std::string& buf)
+			{
+				return std::string(buf.data() + pos_, len_);
+			}
 			void reset()
 			{
 				len_ = 0;
@@ -121,19 +140,6 @@ namespace xhttper
 				return left.len_ < right.len_;
 			}
 		};
-		bool do_parser()
-		{
-			if (!parse_method())
-				return false;
-			if (!parse_path())
-				return false;
-			if (!parse_version())
-				return false;
-			if (!parse_headers())
-				return false;
-			return true;
-		}
-		
 		bool parse_headers()
 		{
 			while (true)
@@ -153,7 +159,7 @@ namespace xhttper
 				if (!ref.len_)
 					return false;
 				if (next() != '\n')
-					throw data_error();
+					throw parse_error();
 
 				headers_.emplace(first_, ref);
 				first_.reset();
@@ -166,26 +172,43 @@ namespace xhttper
 				}
 			}
 		}
-		bool parse_version()
+		bool parse_status()
 		{
-			if (version_ != version::e_null)
+			if (status_.len_)
 				return true;
 			if (!skip_space())
 				return false;
-			static constexpr int verlen = sizeof("HTTP/1.x") - 1;
-			if (pos_ + verlen > buf_.size())
+			auto ref = get_str_ref(' ');
+			if (!ref.len_)
 				return false;
-			auto ref = get_str_ref('.');
-			auto text = std::string(buf_.data() + ref.pos_, ref.len_);
-			if (text != "HTTP/1")
-				throw data_error();
-			char v = next();
-			if (v == '1')
-				version_ = version::e_1_1;
-			else if(v == '0')
-				version_ = version::e_1_0;
-			else 
-				throw data_error();
+			status_ = ref;
+			return true;
+		}
+		bool parse_status_str()
+		{
+			if (status_str_.len_)
+				return true;
+			if (!skip_space())
+				return false;
+			auto ref = get_str_ref('\r');
+			status_str_ = ref;
+			return true;
+		}
+		bool parse_version()
+		{
+			if (version_.len_)
+				return true;
+			if (!skip_space())
+				return false;
+			static constexpr size_t len = sizeof("HTTP/1.1")-1;
+			if (buf_.size() - pos_ < len)
+				return false;
+			auto strref = get_str_ref('.');
+			if (!strref.len_)
+				return false;
+			strref.len_ += 2;
+			version_ = strref;
+			next();
 			next();
 			return true;
 		}
@@ -218,31 +241,12 @@ namespace xhttper
 		}
 		bool parse_method()
 		{
-			if (method_ != method::e_null)
+			if (method_.len_)
 				return true;
-
-			auto str = get_str_ref(' ');
-			if (str.len_ == 0)
+			auto refstr = get_str_ref(' ');
+			if (refstr.len_ == 0)
 				return false;
-
-			auto text = std::string(buf_.data() + str.pos_, str.len_);
-			if (text == "POST")
-				method_ = method::e_post;
-			else if (text == "GET")
-				method_ = method::e_get;
-			else if (text == "PUT")
-				method_ = method::e_put;
-			else if (text == "HEAD")
-				method_ = method::e_head;
-			else if (text == "CONNECT")
-				method_ = method::e_connect;
-			else if (text == "TRACE")
-				method_ = method::e_trace;
-			else if (text == "OPTIONS")
-				method_ = method::e_options;
-
-			if (method_ == method::e_null)
-				throw data_error();
+			method_ = refstr;
 			return true;
 		}
 		str_ref get_str_ref(char end)
@@ -281,17 +285,20 @@ namespace xhttper
 		{
 			return buf_[++pos_];
 		}
-		
+
+		str_ref  status_;
+		str_ref status_str_;
+
 		str_ref str_ref_;
 		str_ref first_;
 
-		method method_ = method::e_null;
+		str_ref method_ ;
 		str_ref path_;
-		version version_ = version::e_null;
+		str_ref version_ ;
 
 		std::size_t last_pos_ = 0;
 		std::size_t pos_= 0;
 		std::string buf_;
-		std::multimap < str_ref, str_ref, str_ref_cmp> headers_;
+		std::multimap<str_ref, str_ref, str_ref_cmp> headers_;
 	};
 }

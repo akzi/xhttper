@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\builder.hpp" />
     <ClInclude Include="include\parser.hpp" />
   </ItemGroup>
   <ItemGroup>
