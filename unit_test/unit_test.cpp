@@ -1,6 +1,8 @@
 #include "../../xtest/include/xtest.hpp"
 #include "../include/parser.hpp"
+#include "../include/builder.hpp"
 #include <thread>
+#include <iostream>
 xtest_run;
 
 XTEST_SUITE(xhttper)
@@ -96,5 +98,39 @@ XTEST_SUITE(xhttper)
 		xassert(per.get_header("Expries") == "Thu,08 Mar 2007 07:16:51 GMT");
 		xassert(per.get_header("Set-Cookie") == "ASPSESSIONIDQAQBQQQB=BEJCDGKADEDJKLKKAJEOIMMH; path=/");
 		xassert(per.get_header("Cache-control") == "private");
+	}
+}
+#include <sstream>
+XTEST_SUITE(builder)
+{
+	const char *buf =
+		"HTTP/1.1 200 OK\r\n"
+		"Server: Microsoft-IIS/5.0\r\n"
+		"Date: Thu,08 Mar 200707:17:51 GMT\r\n"
+		"Connection: Keep-Alive\r\n"
+		"Content-Length: 23330\r\n"
+		"Content-Type: text/html\r\n"
+		"Expries: Thu,08 Mar 2007 07:16:51 GMT\r\n"
+		"Set-Cookie: ASPSESSIONIDQAQBQQQB=BEJCDGKADEDJKLKKAJEOIMMH; path=/\r\n"
+		"Cache-control: private\r\n\r\n";
+
+	XUNIT_TEST(build)
+	{
+		xassert(xhttper::builder().build() == "HTTP/1.1 200 OK\r\n\r\n");
+		xhttper::builder ber;
+		ber.append_header("Server", "Microsoft-IIS/5.0");
+		ber.append_header("Date", "Thu,08 Mar 200707:17:51 GMT");
+		ber.append_header("Connection", "Keep-Alive");
+		ber.append_header("Content-Length", "23330");
+		ber.append_header("Content-Type", "text/html");
+		ber.append_header("Expries", "Thu,08 Mar 2007 07:16:51 GMT");
+		ber.append_header("Set-Cookie","ASPSESSIONIDQAQBQQQB=BEJCDGKADEDJKLKKAJEOIMMH; path=/");
+		ber.append_header("Cache-control", "private");
+
+		auto data = ber.build();
+	}
+	XUNIT_TEST(encode_chunked)
+	{
+		xassert(xhttper::builder().encode_chunked(std::string('*', 42)) == "2a\r\n" + std::string('*', 42) + "\r\n")
 	}
 }
