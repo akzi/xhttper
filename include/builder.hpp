@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <string>
 #include <map>
 #include <list>
@@ -17,7 +17,7 @@ namespace xhttper
 			version_ = ver;
 			return *this;
 		}
-		builder &set_status(const std::string & status)
+		builder &set_status(int status)
 		{
 			status_ = status;
 			return *this;
@@ -36,14 +36,14 @@ namespace xhttper
 		std::string build()
 		{
 			std::string buffer_;
-			buffer_.reserve(1024);
-			buffer_.append(version_);
+			buffer_.reserve(1024),
+				buffer_.append(version_);
 			buffer_.push_back(' ');
-			buffer_.append(status_);
+			buffer_.append(std::to_string(status_));
 			buffer_.push_back(' ');
 			buffer_.append(get_status_str(status_));
 			buffer_.append("\r\n");
-			for (auto &itr: headers_)
+			for (auto &itr : headers_)
 			{
 				buffer_.append(itr.first);
 				buffer_.append(": ");
@@ -60,34 +60,78 @@ namespace xhttper
 			oss << "\r\n" << data << "\r\n";
 			return std::move(oss.str());
 		}
-	private:
-		std::string get_status_str(const std::string &status)
+		void reset()
 		{
-			static const std::map<std::string, std::string> status_map = { 
-				{"200", "OK"},
-				{"201", "Created"},
-				{"202", "Accepted"},
-				{"204", "No Content"},
-				{"300", "Multiple Choices"},
-				{"301", "Moved Permanently"},
-				{"302", "Moved Temporarily"},
-				{"304", "Not Modified"},
-				{"400", "Bad Request"},
-				{"401", "Unauthorized"},
-				{"403", "Forbidden"},
-				{"404", "Not Found"}, 
-				{"500", "Internal Server Error"},
-				{"501", "Not Implemented"},
-				{"502", "Bad Gateway"}, 
-				{"503", "Service Unavailable"}};
-			auto itr = status_map.find(status);
+			headers_.clear();
+		}
+	private:
+		std::string get_status_str(int num)
+		{
+			static const std::map<int, std::string> status_map = {
+				{100, "Continue"},
+				{101, "Switching Protocols"},
+				{102, "Processing"},
+
+				{200, "OK"},
+				{201, "Created"},
+				{202, "Accepted"},
+				{203, "Non-Authoritative Information"},
+				{204, "No Content"},
+				{205, "Reset Content"},
+				{206, "Partial Content"},
+				{300, "Multiple Choices"},
+				{301, "Moved Permanently"},
+				{302, "Move temporarily"},
+
+				{303, "See Other"},
+				{304, "Not Modified"},
+				{305, "Use Proxy"},
+				{306, "Switch Proxy"},
+				{307, "Temporary Redirect"},
+				{400, "Bad Request"},
+				{401, "Unauthorized"},
+				{403, "Forbidden"},
+				{404, "Not Found"},
+				{405, "Method Not Allowed"},
+				{406, "Not Acceptable"},
+				{407, "Proxy Authentication Required"},
+				{408, "Request Timeout"},
+				{409, "Conflict"},
+				{410, "Gone"},
+				{411, "Length Required"},
+
+				{412, "Precondition Failed"},
+				{413, "Request Entity Too Large"},
+				{414, "Request-URI Too Long"},
+				{415, "Unsupported Media Type"},
+				{416, "Requested Range Not Satisfiable"},
+				{417, "Expectation Failed"},
+				{422, "Unprocessable Entity"},
+				{423, "Locked"},
+				{424, "Failed Dependency"},
+				{425, "Unordered Collection"},
+				{426, "Upgrade Required"},
+				{449, "Retry With"},
+
+				{500, "Internal Server Error"},
+				{501, "Not Implemented"},
+				{502, "Bad Gateway"},
+				{503, "Service Unavailable"},
+				{504, "Gateway Timeout"},
+				{505, "HTTP Version Not Supported"},
+				{506, "Variant Also Negotiates"},
+				{507, "Insufficient Storage"},
+				{509, "Bandwidth Limit Exceeded"},
+				{510, "Not Extended"},
+				{600, "Unparseable Response Headers"}};
+
+			auto itr = status_map.find(num);
 			if (itr == status_map.end())
-				return {};
+				return{};
 			return itr->second;
 		}
 		std::list<std::pair<std::string, std::string>> headers_;
 		std::string version_{ "HTTP/1.1" };
-		std::string status_{ "200" };
-		
+		int status_ = 200;
 	};
 }

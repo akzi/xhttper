@@ -1,5 +1,6 @@
 #pragma once
 #include <map>
+#include <string>
 namespace xhttper
 {
 	
@@ -41,6 +42,7 @@ namespace xhttper
 				return false;
 			return true;
 		}
+		template<typename strncasecmper>
 		std::string get_header(const char *header_name)
 		{
 			std::size_t len = strlen(header_name);
@@ -49,7 +51,7 @@ namespace xhttper
 			auto range = headers_.equal_range(str);
 			for (auto itr = range.first; itr != range.second; ++itr)
 			{
-				if (strncmp(header_name, buf_.data() + itr->first.pos_, len) == 0)
+				if (strncasecmper()(header_name, buf_.data() + itr->first.pos_, len))
 				{
 					return itr->second.to_string(buf_);
 				}
