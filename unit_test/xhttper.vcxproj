@@ -19,11 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="include\builder.hpp" />
-    <ClInclude Include="include\parser.hpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="unit_test\unit_test.cpp" />
+    <ClCompile Include="unit_test.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{3722C585-49B3-47FB-A3DB-8444AC80BDA5}</ProjectGuid>
