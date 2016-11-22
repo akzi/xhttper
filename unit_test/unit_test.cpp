@@ -12,7 +12,7 @@ XTEST_SUITE(xhttper)
 	XUNIT_TEST(parse)
 	{
 		const char *buf =
-			"GET http://eclick.baidu.com/a.js?tu=u2310667&jk=3f4ff730444a9cb7&word=http%3A%2F%2Fe.firefoxchina.cn%2F%3Fcachebust%3D20160321&if=3&aw=250&ah=108&pt=96500&it=96500&vt=96500&csp=1920,1040&bcl=250,120&pof=250,120&top=0&left=0&total=1&rdm=1479249557254 HTTP/1.1\r\n"
+			"GET /eclick.baidu.com/a.js?tu=u2310667&jk=3f4ff730444a9cb7&word=http%3A%2F%2Fe.firefoxchina.cn%2F%3Fcachebust%3D20160321&if=3&aw=250&ah=108&pt=96500&it=96500&vt=96500&csp=1920,1040&bcl=250,120&pof=250,120&top=0&left=0&total=1&rdm=1479249557254 HTTP/1.1\r\n"
 			"Host: eclick.baidu.com\r\n"
 			"User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64; rv:50.0) Gecko/20100101 Firefox/50.0\r\n"
 			"Accept: */*\r\n"
@@ -23,13 +23,20 @@ XTEST_SUITE(xhttper)
 			"Connection: keep-alive\r\n\r\nhello world";
 
 		xhttper::parser per;
-		per.append(buf, strlen(buf) - 100);
-		xassert(!per.parse_req());
-		per.append(buf + (strlen(buf) -100),100);
-		xassert(per.parse_req());
+
+		auto size = strlen(buf);
+		for (int i =0 ; i < size; i++)
+		{
+			per.append(buf + i, 1);
+			if (per.parse_req())
+			{
+				per.append(buf + i + 1, size - i - 1);
+				break;
+			}
+		}
 
 		xassert(per.get_method() == "GET");
-		xassert(per.get_path() == "http://eclick.baidu.com/a.js?tu=u2310667&jk=3f4ff730444a9cb7&word=http%3A%2F%2Fe.firefoxchina.cn%2F%3Fcachebust%3D20160321&if=3&aw=250&ah=108&pt=96500&it=96500&vt=96500&csp=1920,1040&bcl=250,120&pof=250,120&top=0&left=0&total=1&rdm=1479249557254");
+		xassert(per.get_path() == "/eclick.baidu.com/a.js?tu=u2310667&jk=3f4ff730444a9cb7&word=http%3A%2F%2Fe.firefoxchina.cn%2F%3Fcachebust%3D20160321&if=3&aw=250&ah=108&pt=96500&it=96500&vt=96500&csp=1920,1040&bcl=250,120&pof=250,120&top=0&left=0&total=1&rdm=1479249557254");
 		xassert(per.get_version() == "HTTP/1.1");
 
 		xassert(per.get_header<strncasecmper>("Host") == "eclick.baidu.com");

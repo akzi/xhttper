@@ -2,7 +2,6 @@
 #include <map>
 #include <string>
 #include <vector>
-#include <memory>
 namespace xhttper
 {
 	
@@ -13,34 +12,13 @@ namespace xhttper
 	public:
 		parser()
 		{
+			buf_.reserve(1024);
 		}
-		void append(const char *data, std::size_t len)
+		void append(const char *dat, std::size_t len)
 		{
-			if (len + pos_ < stack_size_ - 1)
-			{
-				memcpy(stack_buf_ + pos_, data, len);
-				buf_ = stack_buf_;
-				size_ += len;
-				buf_[size_] = '\0';
-				return;
-			}
-			if (heap_buf_ == nullptr)
-			{
-				heap_buf_.reset(new char[heap_size_ + 1]);
-				memcpy(heap_buf_.get(), stack_buf_ ,size_);
-			}
-			if (heap_size_ < len + pos_)
-			{
-				while (heap_size_ < len + pos_)
-					heap_size_ *= 2;
-				auto buf = new char[heap_size_ + 1];
-				memcpy(buf, buf_, size_);
-				heap_buf_.reset(buf);
-			}
-			std::memcpy(heap_buf_.get() + pos_, data, len);
-			buf_ = heap_buf_.get();
-			size_ += len;
-			buf_[size_] = '\0';
+			buf_.append(dat, len);
+			size_ = buf_.size();
+			ptr_ = (char*)buf_.data();
 		}
 		bool parse_req()
 		{
@@ -98,14 +76,15 @@ namespace xhttper
 		}
 		std::string get_path()
 		{
-			return path_.to_string(buf_);
+			return std::string(buf_.data() + path_.pos_, path_.len_);
 		}
 		void reset()
 		{
-			if (pos_ < size_)
-				memmove(buf_, buf_ + pos_, size_ - pos_);
-			size_ -= pos_;
-			pos_ = 0;
+			if (pos_ == buf_.size())
+				buf_.clear();
+			else
+				buf_ = std::move(buf_.substr(pos_, buf_.size() - pos_));
+			pos_ = last_pos_ = 0;
 			first_.reset();
 			str_ref_.reset();
 			headers_.clear();
@@ -117,19 +96,20 @@ namespace xhttper
 		}
 		std::string get_string()
 		{
-			return {buf_ + pos_, size_ - pos_};
+			return std::move(buf_);
 		}
 		std::string get_string(std::size_t len)
 		{
-			if (len > size_)
-				throw std::out_of_range("string subscript out of range");
-			std::string result(buf_+pos_, len);
-			pos_ += len;
+			if (len > buf_.size())
+				throw std::exception("string subscript out of range");
+			std::string result(buf_.data(), len);
+			buf_ = std::move(buf_.substr(len, buf_.size() - len));
+			buf_.reserve(1024);
 			return std::move(result);
 		}
 		std::size_t remain_len()
 		{
-			return size_ - pos_;
+			return buf_.size();
 		}
 	private:
 		struct str_ref
@@ -151,27 +131,14 @@ namespace xhttper
 				len_ = self.len_;
 				self.reset();
 			}
-			std::string to_string(const char* buf)
+			std::string to_string(const std::string& buf)
 			{
-				return std::string(buf + pos_, len_);
-			}
-			void set_end(std::size_t end)
-			{
-				len_ = (int)end - pos_;
+				return std::string(buf.data() + pos_, len_);
 			}
 			void reset()
 			{
 				len_ = 0;
 				pos_ = -1;
-			}
-			void set_pos(std::size_t pos)
-			{
-				if(pos_ == -1)
-					pos_ = (int)pos;
-			}
-			int len()
-			{
-				return len_;
 			}
 			int pos_ = -1;
 			int len_ = 0;
@@ -183,54 +150,36 @@ namespace xhttper
 				return left.len_ < right.len_;
 			}
 		};
-		bool check_end()
-		{
-			if(curr() == '\r' && has_next())
-				return  buf_[pos_-2] == '\r' &&
-				        buf_[pos_-1] == '\n' &&
-					    buf_[pos_]   == '\r' &&
-					    buf_[pos_+1] == '\n' ;
-			else if(curr() == '\n')
-				return  buf_[pos_-3] == '\r' &&
-						buf_[pos_-2] == '\n' &&
-						buf_[pos_-1] == '\r' &&
-						buf_[pos_]   == '\n' ;
-			return false;
-		}
 		bool parse_headers()
 		{
 			while (true)
 			{
-				if (check_end())
-				{
-					if (curr() == '\r')
-					{
-						next();
-						next();
-						return true;
-					}
-					next();
-					return true;
-				}
+				if (!skip_space())
+					return false;
 				if (!first_.len_)
 				{
-					first_.set_pos(pos_);
-					auto pos = find_pos(':');
-					if (pos == -1)
+					auto ref = get_str_ref(':');
+					if (!ref.len_)
 						return false;
-					first_.set_end(pos);
+					first_ = ref;
 					next();
 					continue;
 				}
-				if (!skip_space())
+				auto ref = get_str_ref('\r');
+				if (!ref.len_)
 					return false;
-				second_.set_pos(pos_);
-				auto pos = find_pos('\n');
-				if (pos == -1)
-					return false;
-				second_.set_end(pos - 1);
-				headers_.emplace_back(std::move(first_), std::move(second_));
-				next();
+				if (next() != '\n')
+					throw parse_error();
+
+				headers_.emplace_back(first_, ref);
+				first_.reset();
+				if (look_ahead(1) == '\r' && look_ahead(2) == '\n')
+				{
+					next();
+					next();
+					next();
+					return true;
+				}
 			}
 		}
 		bool parse_status()
@@ -239,11 +188,10 @@ namespace xhttper
 				return true;
 			if (!skip_space())
 				return false;
-			status_.set_pos(pos_);
-			auto pos = find_pos(' ');
-			if (pos == -1)
+			auto ref = get_str_ref(' ');
+			if (!ref.len_)
 				return false;
-			status_.set_end(pos);
+			status_ = ref;
 			return true;
 		}
 		bool parse_status_str()
@@ -252,22 +200,25 @@ namespace xhttper
 				return true;
 			if (!skip_space())
 				return false;
-			auto pos = find_pos('\n');
-			if (pos == -1)
-				return false;
-			status_str_.set_end(pos - 1);
-			next();
+			auto ref = get_str_ref('\r');
+			status_str_ = ref;
 			return true;
 		}
 		bool parse_version()
 		{
 			if (version_.len_)
 				return true;
-			version_.set_pos(pos_);
-			auto pos = find_pos('\n');
-			if (pos == -1)
+			if (!skip_space())
 				return false;
-			version_.set_end(pos - 1);
+			static constexpr size_t len = sizeof("HTTP/1.1")-1;
+			if (size_ - pos_ < len)
+				return false;
+			auto strref = get_str_ref('.');
+			if (!strref.len_)
+				return false;
+			strref.len_ += 2;
+			version_ = strref;
+			next();
 			next();
 			return true;
 		}
@@ -275,39 +226,56 @@ namespace xhttper
 		{
 			if (path_.len_)
 				return true;
-			path_.set_pos(pos_);
-			auto pos = find_pos(' ');
-			if (pos == -1)
+			if (!skip_space())
 				return false;
-			path_.set_end(pos);
-			next();
+			auto ref = get_str_ref(' ');
+			if (!ref.len_)
+				return false;
+			path_ = ref;
 			return true;
 		}
 		bool skip_space()
 		{
-			while (buf_[pos_] == ' ')
-				pos_++;
-			return pos_ < size_;
+			while (pos_ < size_ )
+			{
+				char ch = ptr_[pos_];
+				if (ch == ' ' ||
+					ch == '\t' ||
+					ch == '\r' ||
+					ch == '\n')
+					pos_++;
+				else
+					return true;
+			}
+			return false;
 		}
 		bool parse_method()
 		{
-			if (method_.len())
+			if (method_.len_)
 				return true;
-			method_.set_pos(pos_);
-			auto pos = find_pos(' ');
-			if (pos == -1)
+			auto refstr = get_str_ref(' ');
+			if (refstr.len_ == 0)
 				return false;
-			method_.set_end(pos);
-			next();
+			method_ = refstr;
 			return true;
 		}
-		int find_pos(char end)
+		str_ref get_str_ref(char end)
 		{
-			while (has_next() && curr() != end)
-				next();
+			if (str_ref_.pos_ == -1)
+				str_ref_.pos_ = static_cast<int>(pos_);
+
+			while (has_next())
+			{
+				if (curr() != end)
+					next();
+				else
+					break;
+			}
 			if (!has_next())
-				return -1;
-			return (int)pos_;
+				return str_ref_;
+
+			str_ref_.len_ = static_cast<int>(pos_ - str_ref_.pos_);
+			return std::move(str_ref_);
 		}
 		bool has_next()
 		{
@@ -315,17 +283,17 @@ namespace xhttper
 		}
 		const char curr()
 		{
-			return buf_[pos_];
+			return ptr_[pos_];
 		}
 		char look_ahead(int index)
 		{
 			if (pos_ + index >= size_)
 				return '\0';
-			return buf_[pos_+index];
+			return ptr_[pos_+index];
 		}
-		void next()
+		const char next()
 		{
-			++pos_;
+			return ptr_[++pos_];
 		}
 
 		str_ref  status_;
@@ -333,7 +301,6 @@ namespace xhttper
 
 		str_ref str_ref_;
 		str_ref first_;
-		str_ref second_;
 
 		str_ref method_ ;
 		str_ref path_;
@@ -342,11 +309,8 @@ namespace xhttper
 		std::size_t last_pos_ = 0;
 		std::size_t pos_= 0;
 		std::size_t size_ = 0;
-		constexpr static int stack_size_ = 10;
-		int heap_size_ = stack_size_ *2;
-		std::unique_ptr<char[]> heap_buf_;
-		char stack_buf_[stack_size_];
-		char *buf_;
+		std::string buf_;
+		char *ptr_;
 		std::vector<std::pair<str_ref, str_ref>> headers_;
 	};
 }
