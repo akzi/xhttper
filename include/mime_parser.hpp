@@ -4,6 +4,10 @@ namespace xhttper
 	class mime_parser
 	{
 	public:
+		using data_callback_t = std::function<void(const std::string &)>;
+		using header_callback_t = std::function<void(const std::string &,const std::string &)>;
+		using end_callback_t = std::function<void()>;
+		
 		struct disposition
 		{
 			std::string name_;
@@ -85,8 +89,19 @@ namespace xhttper
 			boundary_end_.append(boundary);
 			boundary_end_.append("--");
 		}
+		void regist_end_callback(const end_callback_t &callback)
+		{
+			end_callback_ = callback;
+		}
+		void regist_data_callback(const data_callback_t &callback)
+		{
+			data_callback_ = callback;
+		}
+		void regist_header_callback(const header_callback_t &callback)
+		{
+			header_callback_ = callback;
+		}
 	private:
-		friend class uploader;
 		struct boundary_not_found:std::exception 
 		{
 			virtual char const* what() const override
@@ -317,9 +332,10 @@ namespace xhttper
 			cf1_done_ = false;
 			cf2_done_ = false;
 		}
-		std::function<void()> end_callback_;
-		std::function<void(std::string &&)> data_callback_;
-		std::function<void(const std::string &, const std::string &)> header_callback_;
+		end_callback_t end_callback_;
+		data_callback_t data_callback_;
+		header_callback_t header_callback_;
+		
 		recv_data_state recv_data_state_ = e_recv_data;
 		header_state header_state_ = e_name;
 		state state_ = e_boundary;
@@ -327,19 +343,15 @@ namespace xhttper
 		bool boundary_done_ = false;
 		std::string buffer_;
 
-		bool check_headers_end_ = false;
 		bool cr1_done_ = false;
 		bool cf1_done_ = false;
 		bool cr2_done_ = false;
 		bool cf2_done_ = false;
 		std::string header_name_;
 		std::string header_data_;
-		std::map<std::string, std::string> entries_;
-		std::size_t boundary_length_;
 		std::string boundary_;
 		std::string boundary_end_;
 		std::string boundary_buffer_;
-		std::size_t content_length_ = 0;
 	};
 
 }
