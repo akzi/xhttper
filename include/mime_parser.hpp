@@ -4,7 +4,7 @@ namespace xhttper
 	class mime_parser
 	{
 	public:
-		using data_callback_t = std::function<void(const std::string &)>;
+		using data_callback_t = std::function<void(std::string &&)>;
 		using header_callback_t = std::function<void(const std::string &,const std::string &)>;
 		using end_callback_t = std::function<void()>;
 		
@@ -322,6 +322,7 @@ namespace xhttper
 		void data_callback()
 		{
 			data_callback_(std::move(buffer_));
+			buffer_.clear();
 		}
 		void reset()
 		{
