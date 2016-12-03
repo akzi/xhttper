@@ -1,7 +1,7 @@
 #include "../../xtest/include/xtest.hpp"
 #include "../../xutil/include/functional.hpp"
-#include "../include/parser.hpp"
-#include "../include/builder.hpp"
+#include "../include/http_parser.hpp"
+#include "../include/http_builder.hpp"
 #include <thread>
 #include <iostream>
 xtest_run;
@@ -22,7 +22,7 @@ XTEST_SUITE(xhttper)
 			"Cookie: BAIDUID=9DF780D9B96413B1421F2758E92D4DEB:FG=1\r\n"
 			"Connection: keep-alive\r\n\r\nhello world";
 
-		xhttper::parser per;
+		xhttper::http_parser per;
 
 		auto size = strlen(buf);
 		for (int i =0 ; i < size; i++)
@@ -69,7 +69,7 @@ XTEST_SUITE(xhttper)
 			} while (1);
 		});
 
-		xhttper::parser per;
+		xhttper::http_parser per;
 		do
 		{
 			per.append(buf, strlen(buf));
@@ -92,7 +92,7 @@ XTEST_SUITE(xhttper)
 			"Set-Cookie: ASPSESSIONIDQAQBQQQB=BEJCDGKADEDJKLKKAJEOIMMH; path=/\r\n"
 			"Cache-control: private\r\n\r\n";
 
-		xhttper::parser per;
+		xhttper::http_parser per;
 		per.append(buf, strlen(buf) - 100);
 		xassert(!per.parse_rsp());
 		per.append(buf + (strlen(buf) - 100), 100);
@@ -127,8 +127,8 @@ XTEST_SUITE(builder)
 
 	XUNIT_TEST(build)
 	{
-		xassert(xhttper::builder().build() == "HTTP/1.1 200 OK\r\n\r\n");
-		xhttper::builder ber;
+		xassert(xhttper::http_builder().build() == "HTTP/1.1 200 OK\r\n\r\n");
+		xhttper::http_builder ber;
 		ber.append_header("Server", "Microsoft-IIS/5.0");
 		ber.append_header("Date", "Thu,08 Mar 2007 07:17:51 GMT");
 		ber.append_header("Connection", "Keep-Alive");
@@ -142,6 +142,6 @@ XTEST_SUITE(builder)
 	}
 	XUNIT_TEST(encode_chunked)
 	{
-		xassert(xhttper::builder().encode_chunked(std::string('*', 42)) == "2a\r\n" + std::string('*', 42) + "\r\n")
+		xassert(xhttper::http_builder().encode_chunked(std::string('*', 42)) == "2a\r\n" + std::string('*', 42) + "\r\n")
 	}
 }

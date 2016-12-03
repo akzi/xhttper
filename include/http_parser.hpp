@@ -8,10 +8,10 @@ namespace xhttper
 	
 	struct parse_error : std::exception {};
 
-	class parser
+	class http_parser
 	{
 	public:
-		parser()
+		http_parser()
 		{
 		}
 		void append(const char *data, std::size_t len)
@@ -102,9 +102,7 @@ namespace xhttper
 		}
 		void reset()
 		{
-			if (pos_ < size_)
-				memmove(buf_, buf_ + pos_, size_ - pos_);
-			size_ -= pos_;
+			size_ =  pos_ = 0;
 			pos_ = 0;
 			first_.reset();
 			str_ref_.reset();

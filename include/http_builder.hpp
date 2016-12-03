@@ -5,30 +5,30 @@
 #include <sstream>
 namespace xhttper
 {
-	class builder
+	class http_builder
 	{
 	public:
-		builder()
+		http_builder()
 		{
 
 		}
-		builder &set_version(const std::string & ver)
+		http_builder &set_version(const std::string & ver)
 		{
 			version_ = ver;
 			return *this;
 		}
-		builder &set_status(int status)
+		http_builder &set_status(int status)
 		{
 			status_ = status;
 			return *this;
 		}
 		template<typename T>
-		builder &append_header(T &&key, T &&value)
+		http_builder &append_header(T &&key, T &&value)
 		{
 			headers_.emplace_back(std::forward<T>(key), std::forward<T>(value));
 			return *this;
 		}
-		builder &append_header(const char *key, const char *value)
+		http_builder &append_header(const char *key, const char *value)
 		{
 			headers_.emplace_back(key, value);
 			return *this;
