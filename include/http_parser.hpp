@@ -341,7 +341,7 @@ namespace xhttper
 		std::size_t pos_= 0;
 		std::size_t size_ = 0;
 		constexpr static int stack_size_ = 10;
-		int heap_size_ = stack_size_ *2;
+		std::size_t heap_size_ = stack_size_ *2;
 		std::unique_ptr<char[]> heap_buf_;
 		char stack_buf_[stack_size_];
 		char *buf_;

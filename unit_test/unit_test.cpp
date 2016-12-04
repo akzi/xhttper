@@ -9,6 +9,7 @@ xtest_run;
 using namespace xutil::functional;
 XTEST_SUITE(xhttper)
 {
+#if 0
 	XUNIT_TEST(parse)
 	{
 		const char *buf =
@@ -50,33 +51,36 @@ XTEST_SUITE(xhttper)
 		per.reset();
 		xassert(per.get_string(strlen("hello world"))== "hello world");
 	}
-#if 2
 	XUNIT_TEST(Benchmark)
 	{
 		const char *buf = "GET /cookies HTTP/1.1\r\nHost: 127.0.0.1:8090\r\nConnection: keep-alive\r\nCache-Control: max-age=0\r\nAccept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\nUser-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.17 (KHTML, like Gecko) Chrome/24.0.1312.56 Safari/537.17\r\nAccept-Encoding: gzip,deflate,sdch\r\nAccept-Language: en-US,en;q=0.8\r\nAccept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.3\r\nCookie: name=wookie\r\n\r\n";
 		auto buflen =  strlen(buf);
 		int64_t count = 0;
+		bool stop = false;
 		std::thread counter([&] {
+			int seconds = 5;
 			auto last_count = count;
 			auto count_ = count;
 			auto len = strlen(buf);
+			std::cout << std::endl;;
 			do
 			{
 				count_ = count;
 				std::cout << (count_ - last_count)*buflen / 1024 / 1024 << " MB " << (count_ - last_count) << std::endl;
 				last_count = count_;
 				std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-			} while (1);
+			} while (seconds -- > 0);
+			stop = true;
 		});
-
 		xhttper::http_parser per;
+		counter.detach();
 		do
 		{
 			per.append(buf, strlen(buf));
 			xassert(per.parse_req());
 			per.reset();
 			count++;
-		} while (1);
+		} while (stop == false);
 	}
 #endif
 	XUNIT_TEST(parse_rsp)
@@ -92,12 +96,14 @@ XTEST_SUITE(xhttper)
 			"Set-Cookie: ASPSESSIONIDQAQBQQQB=BEJCDGKADEDJKLKKAJEOIMMH; path=/\r\n"
 			"Cache-control: private\r\n\r\n";
 
-		xhttper::http_parser per;
-		per.append(buf, strlen(buf) - 100);
-		xassert(!per.parse_rsp());
-		per.append(buf + (strlen(buf) - 100), 100);
-		xassert(per.parse_rsp());
-
+		xhttper::parser per;
+		int length = (int)strlen(buf);
+		for (size_t i = 0; i < length; i++)
+		{
+			per.append(buf + i, 1);
+			if (per.parse_rsp())
+				break;
+		}
 		xassert(per.get_version() == "HTTP/1.1");
 		xassert(per.get_status() == "200");
 		xassert(per.get_status_str() == "OK");

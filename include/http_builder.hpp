@@ -23,35 +23,64 @@ namespace xhttper
 			return *this;
 		}
 		template<typename T>
-		http_builder &append_header(T &&key, T &&value)
+		http_builder &append_entry(T &&key, T &&value)
 		{
 			headers_.emplace_back(std::forward<T>(key), std::forward<T>(value));
 			return *this;
 		}
-		http_builder &append_header(const char *key, const char *value)
+		http_builder &append_entry(const char *key, const char *value)
 		{
 			headers_.emplace_back(key, value);
 			return *this;
 		}
-		std::string build()
+		http_builder & set_url(const std::string &url)
 		{
-			std::string buffer_;
-			buffer_.reserve(1024),
-				buffer_.append(version_);
-			buffer_.push_back(' ');
-			buffer_.append(std::to_string(status_));
-			buffer_.push_back(' ');
-			buffer_.append(get_status_str(status_));
-			buffer_.append("\r\n");
+			url_ = url;
+			return *this;
+		}
+		http_builder & set_method(const std::string &method)
+		{
+			method_ = method;
+			return *this;
+		}
+		std::string build_resp()
+		{
+			std::string buffer;
+			buffer.reserve(1024);
+			buffer.append(version_);
+			buffer.push_back(' ');
+			buffer.append(std::to_string(status_));
+			buffer.push_back(' ');
+			buffer.append(get_status_str(status_));
+			buffer.append("\r\n");
 			for (auto &itr : headers_)
 			{
-				buffer_.append(itr.first);
-				buffer_.append(": ");
-				buffer_.append(itr.second);
-				buffer_.append("\r\n");
+				buffer.append(itr.first);
+				buffer.append(": ");
+				buffer.append(itr.second);
+				buffer.append("\r\n");
 			}
-			buffer_.append("\r\n");
-			return std::move(buffer_);
+			buffer.append("\r\n");
+			return std::move(buffer);
+		}
+		std::string build_req()
+		{
+			std::string buffer;
+			buffer.reserve(1024);
+			buffer.append(method_);
+			buffer.push_back(' ');
+			buffer.append(url_);
+			buffer.append(version_);
+			buffer.append("\r\n");
+			for (auto &itr : headers_)
+			{
+				buffer.append(itr.first);
+				buffer.append(": ");
+				buffer.append(itr.second);
+				buffer.append("\r\n");
+			}
+			buffer.append("\r\n");
+			return std::move(buffer);
 		}
 		std::string encode_chunked(std::string && data)
 		{
@@ -63,6 +92,8 @@ namespace xhttper
 		void reset()
 		{
 			headers_.clear();
+			url_ = "/";
+			method_ = "GET";
 		}
 	private:
 		std::string get_status_str(int num)
@@ -130,6 +161,8 @@ namespace xhttper
 				return{};
 			return itr->second;
 		}
+		std::string url_ = "/";
+		std::string method_="GET";
 		std::list<std::pair<std::string, std::string>> headers_;
 		std::string version_{ "HTTP/1.1" };
 		int status_ = 200;
