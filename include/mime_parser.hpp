@@ -25,7 +25,7 @@ namespace xhttper
 		{
 
 		}
-		bool do_parser(char *&data, std::size_t &len)
+		bool do_parse(char *&data, std::size_t &len)
 		{
 			while (len)
 			{
