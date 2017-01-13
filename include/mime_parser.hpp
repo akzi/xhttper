@@ -267,7 +267,7 @@ namespace xhttper
 		template<char terminater>
 		bool get_string(std::string &buffer, char *&data, std::size_t &len)
 		{
-			int i = 0;
+			std::size_t i = 0;
 			while (data[i] != terminater && i < len)
 			{
 				buffer.push_back(data[i]);

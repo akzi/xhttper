@@ -73,7 +73,7 @@ namespace xhttper
 			std::size_t len = strlen(header_name);
 			for (auto &itr: headers_)
 			{
-				if (itr.first.len_ != len)
+				if (itr.first.len_ != (int)len)
 					continue;
 				if (strncasecmper()(itr.first.to_string(buf_).data(), header_name, len))
 					return itr.second.to_string(buf_);
@@ -311,7 +311,7 @@ namespace xhttper
 		{
 			return pos_ < size_;
 		}
-		const char curr()
+		char curr()
 		{
 			return buf_[pos_];
 		}
