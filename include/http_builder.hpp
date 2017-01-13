@@ -91,7 +91,7 @@ namespace xhttper
 		{
 			std::ostringstream oss;
 			oss << std::hex << data.size();
-			oss << "\r\n" << data << "\r\n";
+			oss << "\r\n" << std::move(data) << "\r\n";
 			return oss.str();
 		}
 		void reset()
