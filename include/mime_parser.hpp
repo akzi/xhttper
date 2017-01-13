@@ -104,7 +104,7 @@ namespace xhttper
 	private:
 		struct boundary_not_found:std::exception 
 		{
-			virtual char const* what() const override
+			virtual char const* what() const noexcept override
 			{
 				return nullptr;
 			}
