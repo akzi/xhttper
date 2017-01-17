@@ -19,7 +19,7 @@ namespace xhttper
 		{
 			if (len + pos_ < stack_size_ - 1)
 			{
-				memcpy(stack_buf_ + pos_, data, len);
+				std::memcpy(stack_buf_ + pos_, data, len);
 				buf_ = stack_buf_;
 				size_ += len;
 				buf_[size_] = '\0';
@@ -28,14 +28,14 @@ namespace xhttper
 			if (heap_buf_ == nullptr)
 			{
 				heap_buf_.reset(new char[heap_size_ + 1]);
-				memcpy(heap_buf_.get(), stack_buf_ ,size_);
+				std::memcpy(heap_buf_.get(), stack_buf_ ,size_);
 			}
 			if (heap_size_ < len + pos_)
 			{
 				while (heap_size_ < len + pos_)
 					heap_size_ *= 2;
 				auto buf = new char[heap_size_ + 1];
-				memcpy(buf, buf_, size_);
+				std::memcpy(buf, buf_, size_);
 				heap_buf_.reset(buf);
 			}
 			std::memcpy(heap_buf_.get() + pos_, data, len);
@@ -341,7 +341,7 @@ namespace xhttper
 		std::size_t last_pos_ = 0;
 		std::size_t pos_= 0;
 		std::size_t size_ = 0;
-		constexpr static int stack_size_ = 10;
+		constexpr static int stack_size_ = 1024;
 		std::size_t heap_size_ = stack_size_ *2;
 		std::unique_ptr<char[]> heap_buf_;
 		char stack_buf_[stack_size_];
