@@ -47,7 +47,7 @@ namespace xhttper
 			method_ = method;
 			return *this;
 		}
-		std::string build_resp()
+		std::string build_resp(const std::string &data = "")
 		{
 			std::string buffer;
 			buffer.reserve(1024);
