@@ -8,6 +8,11 @@ namespace xhttper
 		{
 
 		}
+		query(query &other)
+			:query_str_(other.query_str_)
+		{
+
+		}
 		query(query &&other)
 			:query_str_(std::move(other.query_str_))
 		{

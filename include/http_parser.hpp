@@ -263,7 +263,7 @@ namespace xhttper
 			if (version_.len_)
 				return true;
 			version_.set_pos(pos_);
-			auto pos = find_pos('\n');
+			auto pos = find_pos(' ');
 			if (pos == -1)
 				return false;
 			version_.set_end(pos - 1);
