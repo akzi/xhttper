@@ -101,6 +101,20 @@ namespace xhttper
 		{
 			return url_.to_string(buf_);
 		}
+		std::string path()
+		{
+			if (path_.size())
+				return path_;
+			auto str = url();
+			auto pos = str.find('?');
+			if (pos == str.npos)
+			{
+				path_ = str;
+				return str;
+			}
+			path_ = str.substr(pos, str.size() - pos);
+			return str;
+		}
 		void reset()
 		{
 			size_ =  pos_ = 0;
@@ -113,6 +127,7 @@ namespace xhttper
 			version_.reset();
 			status_.reset();
 			status_str_.reset();
+			path_.clear();
 		}
 		std::string get_string()
 		{
@@ -337,6 +352,8 @@ namespace xhttper
 		str_ref method_ ;
 		str_ref url_;
 		str_ref version_ ;
+
+		std::string path_;
 
 		std::size_t last_pos_ = 0;
 		std::size_t pos_= 0;
